@@ -22,7 +22,14 @@
 
 ## 当前二次开发范围
 
-当前提交只建立开发基线，尚未增加理赔业务代码。RAGFlow 原生的用户、租户、知识库、文档解析、检索和 Agent 能力均属于上游实现。
+P1 已增加理赔领域的数据基础：
+
+- `ClaimCase`、`ClaimPolicy`、`ClaimMaterial`、`ClaimReview`、`ClaimSetting` 五张业务表；
+- 可校验的车险材料规则 `conf/claim_rules.yaml`；
+- 20 个虚构案件、20 份虚构保单及关联材料的幂等种子服务和命令；
+- 针对规则、演示数据和模型约束的单元测试。
+
+案件 API、Agent 工具、RAG 检索和审核报告尚未实现。RAGFlow 原生的用户、租户、知识库、文档解析、检索和 Agent 能力均属于上游实现。
 
 后续新增内容将集中记录在本文件中，并遵循以下边界：
 
@@ -38,7 +45,34 @@
 | 提交 | 改动 |
 | --- | --- |
 | 基线建立提交 | 新增本文件，并在 README 增加二次开发入口；未修改业务代码。 |
+| P1 理赔数据基础 | 新增理赔五表、材料规则、虚构演示数据和单元测试。 |
+
+## 二次开发文件
+
+本人新增：
+
+- `api/claim/`：理赔领域包、规则加载器和演示数据服务；
+- `conf/claim_rules.yaml`：虚构车险材料规则；
+- `scripts/seed_claim_demo.py`：租户级演示数据命令；
+- `test/unit_test/claims/`：理赔基础单元测试。
+
+本人修改：
+
+- `api/db/db_models.py`：注册理赔领域模型和 GaussDB 复制表配置；
+- `api/ragflow_server.py`：启动时校验理赔规则；
+- `UPSTREAM.md`：维护基线、改动和验证记录。
+
+其余目录、文件和 RAGFlow 原生能力均来自上游基线。
 
 ## 基线验证状态
 
-当前仅确认仓库检出提交、Python 包版本和 Git 远端信息。Python 后端、数据库、检索服务和模型连通性将在 P0 阶段验证后补充。
+当前已确认仓库检出提交、Python 包版本和 Git 远端信息。Python 后端、数据库、检索服务和模型连通性仍需在实际运行环境中验证。
+
+## 演示数据命令
+
+```powershell
+python scripts/seed_claim_demo.py --tenant-id <当前租户ID>
+python scripts/seed_claim_demo.py --tenant-id <当前租户ID> --reset-demo
+```
+
+种子脚本只操作指定租户的 `claim-demo-v1` 虚构数据，并在覆盖同名非演示案件或保单前终止。

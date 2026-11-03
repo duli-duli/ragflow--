@@ -38,6 +38,7 @@ from peewee import (
     CharField,
     CompositeKey,
     DateTimeField,
+    DecimalField,
     Field,
     FloatField,
     IntegerField,
@@ -561,6 +562,10 @@ class RetryingPooledGaussDBDatabase(GaussDBPsycopgRetryMixin, PooledPostgresqlDa
         {
             "compilation_template",
             "compilation_template_group",
+            "claim_case",
+            "claim_policy",
+            "claim_review",
+            "claim_setting",
             "file_commit_item",
             "tenant_llm",
             "tenant_model_provider",
@@ -1901,6 +1906,91 @@ class TenantModelGroupMapping(DataBaseModel):
     class Meta:
         db_table = "tenant_model_group_mapping"
         primary_key = CompositeKey("group_id", "provider_id", "instance_id", "model_id")
+
+
+class ClaimCase(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    case_no = CharField(max_length=64, null=False, index=True)
+    policy_no = CharField(max_length=64, null=False, index=True)
+    accident_type = CharField(max_length=64, null=False, index=True)
+    accident_time = DateTimeField(null=False, index=True)
+    accident_location = CharField(max_length=255, null=False)
+    accident_description = TextField(null=False)
+    estimated_loss = DecimalField(max_digits=14, decimal_places=2, null=False, default=0)
+    case_status = CharField(max_length=32, null=False, default="new", index=True)
+    source_version = CharField(max_length=32, null=False, index=True)
+
+    class Meta:
+        db_table = "claim_case"
+        indexes = ((("tenant_id", "case_no"), True),)
+
+
+class ClaimPolicy(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    policy_no = CharField(max_length=64, null=False, index=True)
+    insured_name = CharField(max_length=100, null=False)
+    vehicle_plate = CharField(max_length=32, null=False)
+    vehicle_model = CharField(max_length=100, null=False)
+    coverage_amount = DecimalField(max_digits=14, decimal_places=2, null=False, default=0)
+    start_date = DateTimeField(null=False, index=True)
+    end_date = DateTimeField(null=False, index=True)
+    policy_status = CharField(max_length=32, null=False, index=True)
+
+    class Meta:
+        db_table = "claim_policy"
+        indexes = ((("tenant_id", "policy_no"), True),)
+
+
+class ClaimMaterial(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    case_id = CharField(max_length=32, null=False, index=True)
+    material_type = CharField(max_length=64, null=False, index=True)
+    file_name = CharField(max_length=255, null=False)
+    object_location = CharField(max_length=512, null=True)
+    verification_status = CharField(max_length=32, null=False, default="declared", index=True)
+
+    class Meta:
+        db_table = "claim_material"
+
+
+class ClaimReview(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, index=True)
+    user_id = CharField(max_length=32, null=False, index=True)
+    case_id = CharField(max_length=32, null=False, index=True)
+    request_id = CharField(max_length=64, null=False, index=True)
+    status = CharField(max_length=32, null=False, index=True)
+    policy_check = JSONField(null=False, default=dict)
+    material_check = JSONField(null=False, default=dict)
+    citations = JSONField(null=False, default=list)
+    report = JSONField(null=False, default=dict)
+    rule_version = CharField(max_length=64, null=False)
+    model_snapshot = JSONField(null=False, default=dict)
+    error_code = CharField(max_length=64, null=True)
+    error_message = TextField(null=True)
+    completed_at = DateTimeField(null=True, index=True)
+
+    class Meta:
+        db_table = "claim_review"
+        indexes = (
+            (("tenant_id", "request_id"), True),
+            (("tenant_id", "case_id", "create_time"), False),
+        )
+
+
+class ClaimSetting(DataBaseModel):
+    id = CharField(max_length=32, primary_key=True)
+    tenant_id = CharField(max_length=32, null=False, unique=True)
+    dataset_id = EmptyStringCharField(max_length=32, null=False, default="", index=True)
+    canvas_template_id = CharField(max_length=32, null=True)
+    rule_version = CharField(max_length=64, null=False)
+    status = CharField(max_length=1, null=False, default="1", index=True)
+
+    class Meta:
+        db_table = "claim_setting"
 
 
 GAUSSDB_EMPTY_STRING_COMPATIBLE_COLUMNS = (

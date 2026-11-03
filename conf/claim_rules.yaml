@@ -1,0 +1,22 @@
+version: claim-rules-v1
+fictional: true
+accident_types:
+  single_vehicle_collision:
+    display_name: 单方碰撞
+    required_materials:
+      - driving_license
+      - vehicle_license
+      - accident_photos
+  two_vehicle_collision:
+    display_name: 双方碰撞
+    required_materials:
+      - driving_license
+      - vehicle_license
+      - accident_photos
+      - liability_determination
+  vehicle_repair:
+    display_name: 车辆维修
+    required_materials:
+      - driving_license
+      - vehicle_license
+      - repair_invoice

@@ -104,6 +104,10 @@ def run_server():
     logging.info(f"RAGFlow version: {get_ragflow_version()}")
     logging.info(f"project base: {get_project_base_directory()}")
     show_configs()
+    from api.claim.rules import load_claim_rules
+
+    claim_rules = load_claim_rules()
+    logging.info(f"Loaded claim rules {claim_rules.version} with {len(claim_rules.accident_types)} accident types.")
     settings.init_settings()
     settings.print_rag_settings()
 
