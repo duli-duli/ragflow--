@@ -4,6 +4,10 @@
 </a>
 </div>
 
+> **车险理赔辅助审核平台二次开发**
+>
+> 本仓库基于 RAGFlow `v0.27.2` 扩展车险理赔审核能力。上游基线、二次开发范围和当前改动见 [UPSTREAM.md](./UPSTREAM.md)。
+
 <p align="center">
   <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-DBEDFA"></a>
   <a href="./README_zh.md"><img alt="简体中文版自述文件" src="https://img.shields.io/badge/简体中文-DFE0E5"></a>
