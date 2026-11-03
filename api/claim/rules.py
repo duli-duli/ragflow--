@@ -14,12 +14,15 @@
 #  limitations under the License.
 #
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
 from ruamel.yaml import YAML
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CLAIM_RULES_PATH = Path(__file__).resolve().parents[2] / "conf" / "claim_rules.yaml"
 
@@ -52,11 +55,17 @@ def _non_empty_string(value: object, field_name: str) -> str:
 
 def load_claim_rules(path: str | Path | None = None) -> ClaimRules:
     rules_path = Path(path) if path is not None else DEFAULT_CLAIM_RULES_PATH
+    logger.debug("Loading claim rules from %s", rules_path)
     yaml = YAML(typ="safe", pure=True)
     try:
         with rules_path.open(encoding="utf-8") as rules_file:
-            document = yaml.load(rules_file)
+            try:
+                document = yaml.load(rules_file)
+            except Exception as exc:
+                logger.exception("Failed to parse claim rules from %s", rules_path)
+                raise ValueError(f"unable to parse claim rules from {rules_path}") from exc
     except OSError as exc:
+        logger.exception("Failed to read claim rules from %s", rules_path)
         raise ValueError(f"unable to load claim rules from {rules_path}") from exc
 
     if not isinstance(document, Mapping):
@@ -87,4 +96,10 @@ def load_claim_rules(path: str | Path | None = None) -> ClaimRules:
             required_materials=required_materials,
         )
 
+    logger.debug(
+        "Loaded claim rules version=%s accident_types=%d path=%s",
+        version,
+        len(accident_types),
+        rules_path,
+    )
     return ClaimRules(version=version, accident_types=MappingProxyType(accident_types))

@@ -14,6 +14,7 @@
 #  limitations under the License.
 #
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -21,6 +22,8 @@ from uuid import NAMESPACE_URL, uuid5
 
 from api.claim.rules import ClaimRules
 from api.db.db_models import DB, ClaimCase, ClaimMaterial, ClaimPolicy, ClaimReview, Tenant
+
+logger = logging.getLogger(__name__)
 
 DEMO_SOURCE_VERSION = "claim-demo-v1"
 DEMO_CASE_COUNT = 20
@@ -153,18 +156,22 @@ def build_demo_dataset(tenant_id: str, rules: ClaimRules) -> DemoDataset:
 def _validate_demo_write(tenant_id: str, dataset: DemoDataset) -> None:
     records = (*dataset.cases, *dataset.policies, *dataset.materials)
     if any(record["tenant_id"] != tenant_id for record in records):
+        logger.warning("Rejected claim demo write: dataset tenant does not match tenant_id=%s", tenant_id)
         raise ValueError("demo dataset tenant does not match target tenant")
     if Tenant.get_or_none(Tenant.id == tenant_id) is None:
+        logger.warning("Rejected claim demo write: tenant_id=%s does not exist", tenant_id)
         raise ValueError(f"tenant {tenant_id} does not exist")
 
     for case in dataset.cases:
         existing = ClaimCase.get_or_none((ClaimCase.tenant_id == tenant_id) & (ClaimCase.case_no == case["case_no"]))
         if existing is not None and (existing.id != case["id"] or existing.source_version != DEMO_SOURCE_VERSION):
+            logger.warning("Rejected claim demo write: non-demo case=%s tenant_id=%s", case["case_no"], tenant_id)
             raise ValueError(f"refusing to overwrite non-demo case {case['case_no']}")
 
     for policy in dataset.policies:
         existing = ClaimPolicy.get_or_none((ClaimPolicy.tenant_id == tenant_id) & (ClaimPolicy.policy_no == policy["policy_no"]))
         if existing is not None and existing.id != policy["id"]:
+            logger.warning("Rejected claim demo write: non-demo policy=%s tenant_id=%s", policy["policy_no"], tenant_id)
             raise ValueError(f"refusing to overwrite non-demo policy {policy['policy_no']}")
 
 
@@ -172,6 +179,14 @@ def seed_demo_data(tenant_id: str, dataset: DemoDataset) -> dict[str, object]:
     tenant_id = _required_text(tenant_id, "tenant_id")
     _validate_demo_write(tenant_id, dataset)
     case_ids = [str(case["id"]) for case in dataset.cases]
+    logger.info(
+        "Seeding claim demo data tenant_id=%s source_version=%s cases=%d policies=%d materials=%d",
+        tenant_id,
+        DEMO_SOURCE_VERSION,
+        len(dataset.cases),
+        len(dataset.policies),
+        len(dataset.materials),
+    )
 
     with DB.atomic():
         for case in dataset.cases:
@@ -192,6 +207,13 @@ def seed_demo_data(tenant_id: str, dataset: DemoDataset) -> dict[str, object]:
         if dataset.materials:
             ClaimMaterial.insert_many(dataset.materials).execute()
 
+    logger.info(
+        "Seeded claim demo data tenant_id=%s cases=%d policies=%d materials=%d",
+        tenant_id,
+        len(dataset.cases),
+        len(dataset.policies),
+        len(dataset.materials),
+    )
     return {
         "tenant_id": tenant_id,
         "source_version": DEMO_SOURCE_VERSION,
@@ -204,6 +226,12 @@ def seed_demo_data(tenant_id: str, dataset: DemoDataset) -> dict[str, object]:
 def reset_demo_data(tenant_id: str) -> dict[str, int]:
     tenant_id = _required_text(tenant_id, "tenant_id")
     demo_cases = list(ClaimCase.select(ClaimCase.id, ClaimCase.policy_no).where((ClaimCase.tenant_id == tenant_id) & (ClaimCase.source_version == DEMO_SOURCE_VERSION)))
+    logger.info(
+        "Resetting claim demo data tenant_id=%s source_version=%s cases=%d",
+        tenant_id,
+        DEMO_SOURCE_VERSION,
+        len(demo_cases),
+    )
     case_ids = [case.id for case in demo_cases]
     policy_ids = [demo_record_id("policy", tenant_id, case.policy_no) for case in demo_cases]
 
@@ -213,6 +241,14 @@ def reset_demo_data(tenant_id: str) -> dict[str, int]:
         case_count = ClaimCase.delete().where((ClaimCase.tenant_id == tenant_id) & ClaimCase.id.in_(case_ids)).execute() if case_ids else 0
         policy_count = ClaimPolicy.delete().where((ClaimPolicy.tenant_id == tenant_id) & ClaimPolicy.id.in_(policy_ids)).execute() if policy_ids else 0
 
+    logger.info(
+        "Reset claim demo data tenant_id=%s cases=%d policies=%d materials=%d reviews=%d",
+        tenant_id,
+        case_count,
+        policy_count,
+        material_count,
+        review_count,
+    )
     return {
         "case_count": case_count,
         "policy_count": policy_count,

@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 
 import pytest
@@ -63,7 +64,8 @@ def test_demo_dataset_from_another_tenant_is_rejected_before_write():
         demo_service._validate_demo_write("tenant-a", dataset)
 
 
-def test_seed_is_idempotent_and_reset_removes_demo_records(monkeypatch):
+def test_seed_is_idempotent_and_reset_removes_demo_records(monkeypatch, caplog):
+    caplog.set_level(logging.INFO, logger="api.claim.demo_service")
     rules = load_claim_rules()
     dataset = build_demo_dataset("tenant-a", rules)
     database = SqliteDatabase(":memory:")
@@ -87,6 +89,8 @@ def test_seed_is_idempotent_and_reset_removes_demo_records(monkeypatch):
         assert ClaimCase.select().count() == 0
         assert ClaimPolicy.select().count() == 0
         assert ClaimMaterial.select().count() == 0
+        assert "Seeded claim demo data" in caplog.text
+        assert "Reset claim demo data" in caplog.text
     database.close()
 
 

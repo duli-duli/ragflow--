@@ -17,11 +17,14 @@
 
 import argparse
 import json
+import logging
 from collections.abc import Sequence
 
 from api.claim.demo_service import build_demo_dataset, reset_demo_data, seed_demo_data
 from api.claim.rules import load_claim_rules
 from api.db.db_models import DB, init_database_tables
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -32,7 +35,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     args = parse_args(argv)
+    mode = "reset" if args.reset_demo else "seed"
+    logger.info("Starting claim demo command mode=%s tenant_id=%s", mode, args.tenant_id)
     init_database_tables()
 
     if args.reset_demo:
@@ -46,6 +52,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             summary["rule_version"] = rules.version
 
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    logger.info("Completed claim demo command mode=%s tenant_id=%s", mode, args.tenant_id)
     return 0
 
 
